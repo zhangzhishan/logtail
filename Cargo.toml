@@ -2,6 +2,12 @@
 name = "logtail"
 version = "0.1.0"
 edition = "2021"
+authors = ["zhangzhishan"]
+description = "A tool for monitoring multiple log files in a directory simultaneously"
+repository = "https://github.com/zhangzhishan/logtail"
+license = "MIT"
+keywords = ["log", "monitoring", "tail", "watch", "terminal"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
