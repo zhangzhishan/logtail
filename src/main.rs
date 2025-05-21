@@ -54,7 +54,7 @@ async fn watch_directory(directory: &str) -> Result<()> {
     // Initial scan for .log files
     for entry in std::fs::read_dir(directory)? {
         let path = entry?.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("log") {
+        if path.extension().and_then(|s| s.to_str()).map_or(false, |ext| ext.to_lowercase() == "log") {
             let log_file = LogFile::new(&path)?;
             log_files.insert(path, log_file);
         }
@@ -82,29 +82,44 @@ async fn handle_event(
     match event {
         Ok(event) => {
             for path in event.paths {
-                if path.extension().and_then(|s| s.to_str()) == Some("log") {
+                if path.extension().and_then(|s| s.to_str()).map_or(false, |ext| ext.to_lowercase() == "log") {
                     match event.kind {
                         notify::EventKind::Create(_) => {
-                            if let Ok(log_file) = LogFile::new(&path) {
-                                log_files.insert(path.clone(), log_file);
-                                println!(
-                                    "{} New log file detected: {}",
-                                    "➕".green(),
-                                    path.display()
-                                );
+                            match LogFile::new(&path) {
+                                Ok(log_file) => {
+                                    log_files.insert(path.clone(), log_file);
+                                    println!(
+                                        "{} New log file detected: {}",
+                                        "➕".green(),
+                                        path.display()
+                                    );
+                                }
+                                Err(e) => {
+                                    eprintln!("{} Failed to watch new log file {}: {}", "⚠️".red(), path.display(), e);
+                                }
                             }
                         }
                         notify::EventKind::Modify(_) => {
                             if let Some(log_file) = log_files.get_mut(&path) {
-                                if let Ok(content) = log_file.read_new_content() {
-                                    if !content.is_empty() {
-                                        print!(
-                                            "{} {}: {}",
+                                match log_file.read_new_content() {
+                                    Ok(content) => {
+                                        if !content.is_empty() {
+                                            // Print a newline to ensure this block starts on a new line
+                                            println!();
+                                        // Print the file name indicator
+                                        println!(
+                                            "{} {}:",
                                             "📝".yellow(),
-                                            log_file.name.bright_green(),
-                                            content
+                                            log_file.name.bright_green()
                                         );
+                                        // Print the content
+                                        for line in content.lines() {
+                                            println!("  {}", line);
+                                        }
                                     }
+                                }
+                                Err(e) => {
+                                    eprintln!("{} Error reading from log file {}: {}", "⚠️".red(), log_file.name.bright_red(), e);
                                 }
                             }
                         }
